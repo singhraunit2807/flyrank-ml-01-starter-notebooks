@@ -1,0 +1,77 @@
+name: Run Starter Notebooks
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run-notebooks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout my repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Clone official starter into a temporary workspace
+        run: |
+          git clone --depth 1 https://github.com/flyrank-bih/flyrank-ml-internship-starter.git /tmp/flyrank-starter
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r /tmp/flyrank-starter/requirements.txt nbformat nbclient jupyter
+
+      - name: Complete the Week 1 experiment cells
+        run: |
+          python - <<'PY'
+          import nbformat
+          from pathlib import Path
+
+          root = Path('/tmp/flyrank-starter/notebooks')
+
+          nb = nbformat.read(root / '01_first_look_and_discovery.ipynb', as_version=4)
+          for cell in reversed(nb.cells):
+              if cell.cell_type == 'code' and '# Your discovery here' in ''.join(cell.source):
+                  cell.source = '''# Week 1 discovery: redo Discovery A using only rows with positive impressions.\npositive = df[df["impressions_90d"] > 0].copy()\npositive_corr = positive["search_volume"].corr(positive["impressions_90d"])\nprint(f"Rows with impressions_90d > 0: {len(positive):,}")\nprint(f"Correlation (search_volume vs impressions_90d): {positive_corr:.3f}")\nprint("Observation: this is a directional association in the observed starter data, not a causal claim.")'''
+                  break
+          nbformat.write(nb, root / '01_first_look_and_discovery.ipynb')
+
+          nb = nbformat.read(root / '02_your_first_readable_model.ipynb', as_version=4)
+          for cell in reversed(nb.cells):
+              if cell.cell_type == 'code' and '# Your experiment here' in ''.join(cell.source):
+                  cell.source = '''# Experiment: compare readable trees with max_depth 3 and 4.\nfor depth in (3, 4):\n    experiment_tree = DecisionTreeClassifier(max_depth=depth, class_weight="balanced", random_state=42)\n    experiment_tree.fit(X, y)\n    score = experiment_tree.predict_proba(X)[:, 1]\n    print(f"max_depth={depth}: Precision@50 = {precision_at_k(score, y, 50):.3f}")\n    print(export_text(experiment_tree, feature_names=features))\nprint("Observation: deeper trees can improve in-sample ranking, but readability and honest holdout validation still matter.")'''
+                  break
+          nbformat.write(nb, root / '02_your_first_readable_model.ipynb')
+          PY
+
+      - name: Execute both notebooks top to bottom
+        working-directory: /tmp/flyrank-starter
+        run: |
+          jupyter nbconvert --to notebook --execute --inplace notebooks/01_first_look_and_discovery.ipynb --ExecutePreprocessor.timeout=900
+          jupyter nbconvert --to notebook --execute --inplace notebooks/02_your_first_readable_model.ipynb --ExecutePreprocessor.timeout=900
+
+      - name: Copy executed notebooks into my repository
+        run: |
+          mkdir -p notebooks
+          cp /tmp/flyrank-starter/notebooks/01_first_look_and_discovery.ipynb notebooks/
+          cp /tmp/flyrank-starter/notebooks/02_your_first_readable_model.ipynb notebooks/
+
+      - name: Commit executed notebooks
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add notebooks/
+          if git diff --cached --quiet; then
+            echo "No notebook changes to commit."
+          else
+            git commit -m "Run ML-01 starter notebooks"
+            git push
+          fi
