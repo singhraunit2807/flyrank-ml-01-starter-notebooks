@@ -43,7 +43,7 @@ jobs:
       - name: Execute ML-02 notebook top to bottom
         working-directory: /tmp/flyrank-starter
         run: |
-          jupyter nbconvert --to notebook --execute --inplace work/notebooks/w01_research_question.ipynb --ExecutePreprocessor.timeout=900
+          jupyter nbconvert --to notebook --execute --inplace work/notebooks/w01_research_question.ipynb --ExecutePreprocessor.timeout=900 --ExecutePreprocessor.cwd=/tmp/flyrank-starter
 
       - name: Copy executed notebook back
         run: cp /tmp/flyrank-starter/work/notebooks/w01_research_question.ipynb work/notebooks/w01_research_question.ipynb
