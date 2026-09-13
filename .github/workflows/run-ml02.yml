@@ -25,6 +25,11 @@ jobs:
       - name: Clone official FlyRank starter
         run: git clone --depth 1 https://github.com/flyrank-bih/flyrank-ml-internship-starter.git /tmp/flyrank-starter
 
+      - name: Ensure starter CSV is available
+        run: |
+          mkdir -p /tmp/flyrank-starter/data/raw
+          curl -L --fail --retry 3 https://raw.githubusercontent.com/flyrank-bih/flyrank-ml-internship-starter/main/data/raw/content_refresh_anonymized.csv -o /tmp/flyrank-starter/data/raw/content_refresh_anonymized.csv
+
       - name: Install notebook dependencies
         run: |
           python -m pip install --upgrade pip
